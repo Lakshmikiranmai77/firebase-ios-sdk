@@ -111,8 +111,8 @@ class ValuesTest : public ::testing::Test {
 
   void VerifyNotEquals(std::vector<google_firestore_v1_Value>& left,
                        std::vector<google_firestore_v1_Value>& right) {
-    for (const auto & val1 : left) {
-      for (const auto & val2 : right) {
+    for (const auto& val1 : left) {
+      for (const auto& val2 : right) {
         EXPECT_FALSE(Values::Equals(val1, val2));
         EXPECT_FALSE(Values::Equals(val2, val1));
       }
@@ -122,8 +122,8 @@ class ValuesTest : public ::testing::Test {
   void VerifyOrdering(std::vector<google_firestore_v1_Value>& left,
                       std::vector<google_firestore_v1_Value>& right,
                       ComparisonResult cmp) {
-    for (const auto & val1 : left) {
-      for (const auto & val2 : right) {
+    for (const auto& val1 : left) {
+      for (const auto& val2 : right) {
         EXPECT_EQ(cmp, Values::Compare(val1, val2));
       }
     }
