@@ -93,6 +93,13 @@ class ValuesTest : public ::testing::Test {
                       input.server_timestamp_value().local_write_time());
   }
 
+  template <typename... Args>
+  void Add(std::vector<std::vector<google_firestore_v1_Value>>& groups,
+           Args... values) {
+    std::vector<google_firestore_v1_Value> group{(values)...};
+    groups.emplace_back(group);
+  }
+
   void VerifyEquals(std::vector<google_firestore_v1_Value>& group) {
     for (size_t i = 0; i < group.size(); ++i) {
       for (size_t j = i; j < group.size(); ++j) {
@@ -120,13 +127,6 @@ class ValuesTest : public ::testing::Test {
         EXPECT_EQ(cmp, Values::Compare(left[i], right[j]));
       }
     }
-  }
-
-  template <typename... Args>
-  void Add(std::vector<std::vector<google_firestore_v1_Value>>& groups,
-           Args... values) {
-    std::vector<google_firestore_v1_Value> group{(values)...};
-    groups.emplace_back(group);
   }
 
  private:
@@ -175,14 +175,11 @@ TEST_F(ValuesTest, Equality) {
   Add(equals_group, WrapArray("foo", "bar"), WrapArray("foo", "bar"));
   Add(equals_group, WrapArray("foo", "bar", "baz"));
   Add(equals_group, WrapArray("foo"));
-  Add(equals_group, 
-      WrapObject("bar", 1, "foo", 2), WrapObject("foo", 2, "bar", 1);
-  Add(equals_group, 
-      WrapObject("bar", 2, "foo", 1));
-  Add(equals_group, 
-      WrapObject("bar", 1));
-  Add(equals_group, 
-      WrapObject("foo", 1));
+  Add(equals_group, WrapObject("bar", 1, "foo", 2),
+      WrapObject("foo", 2, "bar", 1));
+  Add(equals_group, WrapObject("bar", 2, "foo", 1));
+  Add(equals_group, WrapObject("bar", 1));
+  Add(equals_group, WrapObject("foo", 1));
 
   for (size_t i = 0; i < equals_group.size(); ++i) {
     for (size_t j = i; j < equals_group.size(); ++j) {
@@ -222,11 +219,65 @@ TEST_F(ValuesTest, Ordering) {
   Add(comparison_groups, Wrap(kTimestamp2));
 
   // server timestamps come after all concrete timestamps.
-  // NOTE: server timestamps can't be parsed with wrap().
+  // NOTE: server timestamps can't be parsed with Wrap().
   Add(comparison_groups,
       WrapServerTimestamp(FieldValue::FromServerTimestamp(kTimestamp1)));
   Add(comparison_groups,
       WrapServerTimestamp(FieldValue::FromServerTimestamp(kTimestamp2)));
+
+  // strings
+  Add(comparison_groups, Wrap(""));
+  Add(comparison_groups, Wrap("\000\ud7ff\ue000\uffff"));
+  Add(comparison_groups, Wrap("(╯°□°）╯︵ ┻━┻"));
+  Add(comparison_groups, Wrap("a"));
+  Add(comparison_groups, Wrap("abc def"));
+  // latin small letter e + combining acute accent + latin small letter b
+  Add(comparison_groups, Wrap("e\u0301b"));
+  Add(comparison_groups, Wrap("æ"));
+  // latin small letter e with acute accent + latin small letter a
+  Add(comparison_groups, Wrap("\u00e9a"));
+
+  // blobs
+  Add(comparison_groups, Wrap(BlobValue()));
+  Add(comparison_groups, Wrap(BlobValue(0)));
+  Add(comparison_groups, Wrap(BlobValue(0, 1, 2, 3, 4)));
+  Add(comparison_groups, Wrap(BlobValue(0, 1, 2, 4, 3)));
+  Add(comparison_groups, Wrap(BlobValue(255)));
+
+  // resource names
+  Add(comparison_groups, WrapReference(DbId("p1/d1"), Key("c1/doc1")));
+  Add(comparison_groups, WrapReference(DbId("p1/d1"), Key("c1/doc2")));
+  Add(comparison_groups, WrapReference(DbId("p1/d1"), Key("c10/doc1")));
+  Add(comparison_groups, WrapReference(DbId("p1/d1"), Key("c2/doc1")));
+  Add(comparison_groups, WrapReference(DbId("p1/d2"), Key("c1/doc1")));
+  Add(comparison_groups, WrapReference(DbId("p2/d1"), Key("c1/doc1")));
+
+  // geo points
+  Add(comparison_groups, Wrap(GeoPoint(-90, -180)));
+  Add(comparison_groups, Wrap(GeoPoint(-90, 0)));
+  Add(comparison_groups, Wrap(GeoPoint(-90, 180)));
+  Add(comparison_groups, Wrap(GeoPoint(0, -180)));
+  Add(comparison_groups, Wrap(GeoPoint(0, 0)));
+  Add(comparison_groups, Wrap(GeoPoint(0, 180)));
+  Add(comparison_groups, Wrap(GeoPoint(1, -180)));
+  Add(comparison_groups, Wrap(GeoPoint(1, 0)));
+  Add(comparison_groups, Wrap(GeoPoint(1, 180)));
+  Add(comparison_groups, Wrap(GeoPoint(90, -180)));
+  Add(comparison_groups, Wrap(GeoPoint(90, 0)));
+  Add(comparison_groups, Wrap(GeoPoint(90, 180)));
+
+  // arrays
+  Add(comparison_groups, WrapArray("bar"));
+  Add(comparison_groups, WrapArray("foo", 1));
+  Add(comparison_groups, WrapArray("foo", 2));
+  Add(comparison_groups, WrapArray("foo", "0"));
+
+  // objects
+  Add(comparison_groups, WrapObject("bar", 0));
+  Add(comparison_groups, WrapObject("bar", 0, "foo", 1));
+  Add(comparison_groups, WrapObject("foo", 1));
+  Add(comparison_groups, WrapObject("foo", 2));
+  Add(comparison_groups, WrapObject("foo", "0"));
 
   for (size_t i = 0; i < comparison_groups.size(); ++i) {
     for (size_t j = i; j < comparison_groups.size(); ++j) {
